@@ -4,8 +4,11 @@ var game = {
     computer: '',
     currentPlayer: '',
     moves: [],
-    mode: 0
+    mode: 0,
+    status: '',
+    size: 0
 };
+
 
 //Show Modal Window
 function start() {
@@ -37,6 +40,7 @@ $(document).ready(function () {
 function setGameMode() {
     game.mode = Number.parseInt($('#size').val());
     game.moves = Array(game.mode).fill(0);
+    game.size = Math.sqrt(game.mode);
 };
 
 
@@ -68,18 +72,17 @@ function chooseMove(id) {
         setCurrentPlayer('user');
         status = getGameStatus();
     }
-    if (game.currentPlayer == 'computer' && status != 'win') {
+    if (game.currentPlayer == 'computer' && status != 'win' && game.moves.some(el => el == 0)) {
         computerMove();
     }
     draw();
 };
 
 function getGameStatus() {
-    var size = Math.sqrt(game.mode);
-    var matrix = toMatrix(game.moves, size);
-    var status,
-        colWin = Array(size).fill(0),
-        rowWin = Array(size).fill(0),
+
+    var matrix = toMatrix(game.moves, game.size);
+    var colWin = Array(game.size).fill(0),
+        rowWin = Array(game.size).fill(0),
         mainWin = 0,
         adverseWin = 0;
 
@@ -95,13 +98,13 @@ function getGameStatus() {
         adverseWin += matrix[i][matrix.length - 1 - i];
     }
 
-    if (colWin.some(el => Math.abs(el) == size) || rowWin.some(el => Math.abs(el) == size) || Math.abs(mainWin) == size || Math.abs(adverseWin) == size) {
+    if (colWin.some(el => Math.abs(el) == game.size) || rowWin.some(el => Math.abs(el) == game.size) || Math.abs(mainWin) == game.size || Math.abs(adverseWin) == game.size) {
         lockAllFields();
         console.log('cool');
         setTimeout(resetFields, 1500);
-        status = 'win';
+        game.status = 'win';
     }
-    return status;
+    return game.status;
 };
 
 function toMatrix(data, rowSize) {
@@ -123,6 +126,7 @@ function resetFields() {
     $('.game-field').html('');
 
     game.moves = Array(game.mode).fill(0);
+    game.status = '';
 
     $('div').removeClass('win');
 
