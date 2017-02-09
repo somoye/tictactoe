@@ -4,9 +4,10 @@ var game = {
     computer: '',
     currentPlayer: '',
     moves: [],
-    mode: 0,
+    mode: 9,
     status: '',
-    size: 0
+    size: 3,
+    movesCounter: 0
 };
 
 
@@ -25,29 +26,36 @@ $(document).ready(function () {
         if (id === 'x') {
             game.user = '<span class="fa fa-times human"></span>';
             game.computer = '<span class="fa fa-circle-o computer"></span>';
+            setCurrentPlayer('user');
+            setGameMode();
 
         } else if (id === 'o') {
             game.user = '<span class="fa fa-circle-o human"></span>';
             game.computer = '<span class="fa fa-times computer"></span>';
+            setCurrentPlayer('computer');
+            setGameMode();
+            computerMove();
         }
-        setGameMode();
-        setFirstMove();
-        setCurrentPlayer('user');
     });
 });
 
 
 function setGameMode() {
-    game.mode = Number.parseInt($('#size').val());
-    game.moves = Array(game.mode).fill(0);
+    game.mode = Number.parseInt($('#size').val()) || 9;
     game.size = Math.sqrt(game.mode);
+    fillArray();
 };
 
+function fillArray() {
 
-function setFirstMove() {
-    $('#f1').html(game.computer);
-    $('#f1').removeAttr('onclick');
-    game.moves[0] = -1;
+    for (var i = 0; i < game.size; i++) {
+        game.moves[i] = [];
+
+        for (var j = 0; j < game.size; j++) {
+            game.moves[i][j] = 0;
+        }
+    }
+    console.log(game.moves);
 };
 
 function setCurrentPlayer(player) {
@@ -56,66 +64,78 @@ function setCurrentPlayer(player) {
 
 //Mark player's turn, check the status of the game, reset in case of draw
 function chooseMove(id) {
-    var status;
+
+    var status,
+        rowNumber,
+        colNumber;
+    var id = this.id || id;
+    console.log(id);
     var index = id.slice(1) - 1;
+    rowNumber = Math.floor(index / game.size);
+    colNumber = index % game.size;
 
     if (game.currentPlayer == 'user') {
         $('#' + id).html(game.user);
-        $('#' + id).removeAttr('onclick');
-        game.moves[index] = 1;
+        $('#' + id).off();
+
+        game.moves[rowNumber][colNumber] = 1;
         setCurrentPlayer('computer');
         status = getGameStatus();
+        game.movesCounter++;
     } else if (game.currentPlayer == 'computer') {
         $('#' + id).html(game.computer);
-        $('#' + id).removeAttr('onclick');
-        game.moves[index] = -1;
+        $('#' + id).off();
+
+        game.moves[rowNumber][colNumber] = -1;
         setCurrentPlayer('user');
         status = getGameStatus();
+        game.movesCounter++;
     }
-    if (game.currentPlayer == 'computer' && status != 'win' && game.moves.some(el => el == 0)) {
+    if (game.currentPlayer == 'computer' && status != 'win' && game.movesCounter != game.mode) {
         computerMove();
-    }
+
+    };
     draw();
 };
 
+var e = jQuery.Event.currentTarget;
+var divclick = chooseMove.bind(e);
+
+
 function getGameStatus() {
 
-    var matrix = toMatrix(game.moves, game.size);
+    //    var matrix = toMatrix(game.moves, game.size);
     var colWin = Array(game.size).fill(0),
         rowWin = Array(game.size).fill(0),
         mainWin = 0,
         adverseWin = 0;
 
-    for (var i = 0; i < matrix.length; i++) {
-        for (var j = 0; j < matrix.length; j++) {
-            colWin[j] += matrix[i][j];
-            rowWin[i] += matrix[i][j];
+    for (var i = 0; i < game.moves.length; i++) {
+        for (var j = 0; j < game.moves.length; j++) {
+            colWin[j] += game.moves[i][j];
+            rowWin[i] += game.moves[i][j];
         }
     }
 
-    for (var i = 0; i < matrix.length; i++) {
-        mainWin += matrix[i][i];
-        adverseWin += matrix[i][matrix.length - 1 - i];
+    for (var i = 0; i < game.moves.length; i++) {
+        mainWin += game.moves[i][i];
+        adverseWin += game.moves[i][game.moves.length - 1 - i];
     }
 
-    if (colWin.some(el => Math.abs(el) == game.size) || rowWin.some(el => Math.abs(el) == game.size) || Math.abs(mainWin) == game.size || Math.abs(adverseWin) == game.size) {
+    if (colWin.some(el => el == game.size) || rowWin.some(el => el == game.size) || mainWin == game.size || adverseWin == game.size) {
         lockAllFields();
-        console.log('cool');
         setTimeout(resetFields, 1500);
         game.status = 'win';
+        $('#humanWin').show();
+    }
+    if (colWin.some(el => el == game.size * (-1)) || rowWin.some(el => el == game.size * (-1)) || mainWin == game.size * (-1) || adverseWin == game.size * (-1)) {
+        lockAllFields();
+        setTimeout(resetFields, 1500);
+        game.status = 'win';
+        $('#computerWin').show();
     }
     return game.status;
 };
-
-function toMatrix(data, rowSize) {
-
-    var matrix = [];
-    for (var i = 0; i < data.length; i += rowSize) {
-        matrix.push(data.slice(i, i + rowSize));
-    }
-    return matrix;
-
-}
 
 function lockAllFields() {
     $('.game-field').removeAttr('onclick');
@@ -125,13 +145,19 @@ function resetFields() {
     $('.game-field').attr('onclick', 'chooseMove(this.id)');
     $('.game-field').html('');
 
-    game.moves = Array(game.mode).fill(0);
+    fillArray();
+    game.movesCounter = 0;
     game.status = '';
 
-    $('div').removeClass('win');
+    $('#computerWin').hide();
+    $('#humanWin').hide();
 
-    setTimeout(setFirstMove, 500);
-    setCurrentPlayer('user');
+    if (game.user == '<span class="fa fa-times human"></span>') {
+        setCurrentPlayer('user');
+    } else {
+        setCurrentPlayer('computer');
+        computerMove();
+    }
 };
 
 function computerMove() {
@@ -149,7 +175,8 @@ function getRandomInt(min, max) {
 };
 
 function draw() {
-    if (game.moves.every(el => el !== 0)) {
+
+    if (game.movesCounter == game.mode) {
         setTimeout(resetFields, 1000);
     }
 };
