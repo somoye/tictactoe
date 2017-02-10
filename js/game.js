@@ -1,13 +1,22 @@
 //Game Data
 var game = {
-    user: '',
-    computer: '',
-    currentPlayer: '',
+    currentPlayer: 'user',
     moves: [],
     mode: 9,
     status: '',
     size: 3,
     movesCounter: 0
+};
+
+var players = {
+    user: {
+        symbol: '<span class="fa fa-times human"></span>',
+        value: 1
+    },
+    computer: {
+        symbol: '<span class="fa fa-circle-o computer"></span>',
+        value: -1
+    }
 };
 
 
@@ -18,44 +27,77 @@ function start() {
 
 setTimeout(start, 600);
 
-//Initial Settings: Set figures, Current Player and Game Mode
 $(document).ready(function () {
-    $('.btn').click(function setPlayer() {
-        var id = this.id;
+    $('.btn').on('click', function (event) {
+        initGameMode();
+        drawPlayingField();
+        setPlayer(event);
+    });
 
-        if (id === 'x') {
-            game.user = '<span class="fa fa-times human"></span>';
-            game.computer = '<span class="fa fa-circle-o computer"></span>';
-            setCurrentPlayer('user');
-            setGameMode();
+    function drawPlayingField() {
+        var params = game.size * 134;
+        $('.game').css({
+            'width': params,
+            'height': params
+        });
 
-        } else if (id === 'o') {
-            game.user = '<span class="fa fa-circle-o human"></span>';
-            game.computer = '<span class="fa fa-times computer"></span>';
+        for (var i = 1; i <= game.mode; i++) {
+            var divId = 'f' + i;
+            var gameField = addFieldCell(i, divId);
+            $('.game').append(gameField);
+        }
+        $('.game-field').on('click', setMove);
+    };
+
+    function addFieldCell(i, id) {
+        var containerdiv = document.createElement('div');
+        containerdiv.setAttribute('id', id);
+
+        if (i <= game.size && i % game.size == 0) {
+            containerdiv.setAttribute('class', 'game-field no-top-line no-right-line');
+        } else if (i <= game.size) {
+            containerdiv.setAttribute('class', 'game-field no-top-line right-line');
+        } else if (i % game.size == 0) {
+            containerdiv.setAttribute('class', 'game-field top-line no-right-line');
+        } else {
+            containerdiv.setAttribute('class', 'game-field top-line right-line');
+        };
+        return containerdiv;
+    };
+
+    function setPlayer(event) {
+
+        var id = event.currentTarget.id;
+
+        if (id === 'o') {
+            players.user.symbol = '<span class="fa fa-circle-o human"></span>';
+            players.computer.symbol = '<span class="fa fa-times computer"></span>';
             setCurrentPlayer('computer');
-            setGameMode();
             computerMove();
         }
-    });
+    };
+
+    //Initial Settings: Set figures, Current Player and Game Mode
+
 });
 
 
-function setGameMode() {
+function initGameMode() {
     game.mode = Number.parseInt($('#size').val()) || 9;
     game.size = Math.sqrt(game.mode);
-    fillArray();
+    game.moves = fillArray();
 };
 
 function fillArray() {
-
+    var arr = [];
     for (var i = 0; i < game.size; i++) {
-        game.moves[i] = [];
+        arr[i] = [];
 
         for (var j = 0; j < game.size; j++) {
-            game.moves[i][j] = 0;
+            arr[i][j] = 0;
         }
     }
-    console.log(game.moves);
+    return arr;
 };
 
 function setCurrentPlayer(player) {
@@ -63,96 +105,91 @@ function setCurrentPlayer(player) {
 };
 
 //Mark player's turn, check the status of the game, reset in case of draw
-function chooseMove(id) {
+function setMove(id) {
 
-    var status,
-        rowNumber,
-        colNumber;
     var id = this.id || id;
-    console.log(id);
     var index = id.slice(1) - 1;
-    rowNumber = Math.floor(index / game.size);
-    colNumber = index % game.size;
+    var row = Math.floor(index / game.size);
+    var colm = index % game.size;
 
     if (game.currentPlayer == 'user') {
-        $('#' + id).html(game.user);
-        $('#' + id).off();
-
-        game.moves[rowNumber][colNumber] = 1;
+        drawMove(id, game.currentPlayer, row, colm);
         setCurrentPlayer('computer');
-        status = getGameStatus();
-        game.movesCounter++;
+
     } else if (game.currentPlayer == 'computer') {
-        $('#' + id).html(game.computer);
-        $('#' + id).off();
-
-        game.moves[rowNumber][colNumber] = -1;
+        drawMove(id, game.currentPlayer, row, colm);
         setCurrentPlayer('user');
-        status = getGameStatus();
-        game.movesCounter++;
     }
-    if (game.currentPlayer == 'computer' && status != 'win' && game.movesCounter != game.mode) {
-        computerMove();
+    game.movesCounter++;
 
+    var status = getGameStatus();
+    var noDraw = drawCheck();
+
+    if (game.currentPlayer == 'computer' && status != 'win' && noDraw) {
+        computerMove();
     };
-    draw();
+
 };
 
-var e = jQuery.Event.currentTarget;
-var divclick = chooseMove.bind(e);
-
+function drawMove(id, role, row, colm) {
+    $('#' + id).html(players[role].symbol);
+    $('#' + id).off();
+    game.moves[row][colm] = players[role].value;
+}
 
 function getGameStatus() {
 
-    //    var matrix = toMatrix(game.moves, game.size);
-    var colWin = Array(game.size).fill(0),
-        rowWin = Array(game.size).fill(0),
-        mainWin = 0,
-        adverseWin = 0;
+    var column = Array(game.size).fill(0),
+        row = Array(game.size).fill(0),
+        mainDiagonal = 0,
+        adverseDiagonal = 0;
 
     for (var i = 0; i < game.moves.length; i++) {
         for (var j = 0; j < game.moves.length; j++) {
-            colWin[j] += game.moves[i][j];
-            rowWin[i] += game.moves[i][j];
+            column[j] += game.moves[i][j];
+            row[i] += game.moves[i][j];
         }
+        mainDiagonal += game.moves[i][i];
+        adverseDiagonal += game.moves[i][game.moves.length - 1 - i];
     }
 
-    for (var i = 0; i < game.moves.length; i++) {
-        mainWin += game.moves[i][i];
-        adverseWin += game.moves[i][game.moves.length - 1 - i];
-    }
+    game.status = winChecker(column, row, mainDiagonal, adverseDiagonal);
 
-    if (colWin.some(el => el == game.size) || rowWin.some(el => el == game.size) || mainWin == game.size || adverseWin == game.size) {
-        lockAllFields();
-        setTimeout(resetFields, 1500);
-        game.status = 'win';
-        $('#humanWin').show();
-    }
-    if (colWin.some(el => el == game.size * (-1)) || rowWin.some(el => el == game.size * (-1)) || mainWin == game.size * (-1) || adverseWin == game.size * (-1)) {
-        lockAllFields();
-        setTimeout(resetFields, 1500);
-        game.status = 'win';
-        $('#computerWin').show();
-    }
+    if (game.status == 'win') showWinner();
+
     return game.status;
 };
+
+function winChecker(c, r, m, a) {
+    if (c.some(el => Math.abs(el) == game.size) || r.some(el => Math.abs(el) == game.size) || Math.abs(m) == game.size || Math.abs(a) == game.size) {
+        return game.status = 'win';
+    }
+};
+
+function showWinner() {
+
+    game.currentPlayer !== 'user' ? $('#humanWin').show() : $('#computerWin').show();
+
+    lockAllFields();
+    setTimeout(resetFields, 1500);
+}
 
 function lockAllFields() {
     $('.game-field').removeAttr('onclick');
 };
 
 function resetFields() {
-    $('.game-field').attr('onclick', 'chooseMove(this.id)');
+    $('.game-field').on('click', setMove);
     $('.game-field').html('');
 
-    fillArray();
+    game.moves = fillArray();
     game.movesCounter = 0;
     game.status = '';
 
     $('#computerWin').hide();
     $('#humanWin').hide();
 
-    if (game.user == '<span class="fa fa-times human"></span>') {
+    if (players.user.symbol == '<span class="fa fa-times human"></span>') {
         setCurrentPlayer('user');
     } else {
         setCurrentPlayer('computer');
@@ -163,8 +200,8 @@ function resetFields() {
 function computerMove() {
     var computerChoice = getRandomInt(1, game.mode);
 
-    if ($('#f' + computerChoice).html() != game.user && $('#f' + computerChoice).html() != game.computer) {
-        chooseMove('f' + computerChoice)
+    if ($('#f' + computerChoice).html() != players.user.symbol && $('#f' + computerChoice).html() != players.computer.symbol) {
+        setMove('f' + computerChoice)
     } else {
         computerMove()
     }
@@ -174,9 +211,9 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 };
 
-function draw() {
-
+function drawCheck() {
     if (game.movesCounter == game.mode) {
         setTimeout(resetFields, 1000);
     }
+    return true;
 };
